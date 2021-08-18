@@ -1,40 +1,54 @@
 from flask import Flask
 from flask import jsonify
 from flask import request
-from methods import Token, Restricted
+from methods import Token, Restricted, Authorization
+
+# APP CONFIGURATION
+# -----------------
 
 app = Flask(__name__)
-login = Token()
-protected = Restricted()
+# JWT encryption secret
+secret = "my2w7wjd7yXF64FIADfJxNs1oupTGAuW"
+# Classes to code
+login = Token(secret)
+protected = Restricted(secret)
 
+# ENDPOINTS
+# ---------
 
 # Just a health check
+
+
 @app.route("/")
 def url_root():
     return "OK"
 
 
-# Just a health check
-@app.route("/_health")
-def url_health():
-    return "OK"
-
-
-# e.g. http://127.0.0.1:8000/login
+# Login endpoint - e.g. http://127.0.0.1:8000/login
 @app.route("/login", methods=['POST'])
 def url_login():
-    username = request.form['username']
-    password = request.form['password']
-    res = {
-        "data": login.generate_token(username, password)
-    }
-    return jsonify(res)
+    # Get user data from request
+    username = request.args.get('username')
+    password = request.args.get('password')
+
+    # Generate token using login Object
+    token = login.generate_token(username, password)
+
+    # Check if token is valid (it will be null if credentials are invalid)
+    if token is not None:
+        return token
+    else:
+        # If token is null (invalid credentials), return a 403 HTTP error message
+        return '', 403
 
 
-# # e.g. http://127.0.0.1:8000/protected
+# Protected endpoint - e.g. http://127.0.0.1:8000/protected
 @app.route("/protected")
 def url_protected():
-    auth_token = request.headers.get('Authorization')
+    # Get token from Authorization header
+    data = request.headers.get('Authorization')
+    auth_token = str.replace(str(data), "Bearer ", "")
+    # Verify JWT token
     res = {
         "data": protected.access_data(auth_token)
     }
@@ -42,4 +56,4 @@ def url_protected():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    app.run(host='0.0.0.0', port=8000)
